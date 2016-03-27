@@ -1,50 +1,3 @@
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(custom-safe-themes
-   (quote
-    ("c9fa45acd59564778b031178375261dbdc9259c9781c86e64c937ded3d8132e7" "3c83b3676d796422704082049fc38b6966bcad960f896669dfc21a7a37a748fa" "c74e83f8aa4c78a121b52146eadb792c9facc5b1f02c917e3dbb454fca931223" "a27c00821ccfd5a78b01e4f35dc056706dd9ede09a8b90c6955ae6a390eb1c1e" default)))
- '(ffap-machine-p-known (quote reject))
- '(global-linum-mode t)
- '(helm-swoop-split-with-multiple-windows t)
- '(linum-format "%d ")
- '(linum-highlight-in-all-buffersp nil)
- '(rm-blacklist
-   (quote
-    (" hl-p" " SP" " AC" " Abbrev" " HelmGtags" " FA" " hs" " Helm" " wb" " WK" " yas" " company" " Irony" " ElDoc" " FlyC" " Anaconda")))
- '(safe-local-variable-values
-   (quote
-    ((cmake-ide-dir . "/home/seshu/dev/cppweb/build")
-     (cmake-ide-dir . "/home/seshu/dev/NumericalMethods/build")))))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(ediff-even-diff-Ancestor ((t (:background "Grey" :foreground "black"))))
- '(ediff-even-diff-B ((t (:background "Grey" :foreground "black"))))
- '(ediff-fine-diff-A ((t (:background "red" :foreground "black"))))
- '(ediff-fine-diff-B ((t (:background "green" :foreground "black"))))
- '(ediff-fine-diff-C ((t (:background "yellow" :foreground "black"))))
- '(ediff-odd-diff-A ((t (:background "Grey" :foreground "black"))))
- '(ediff-odd-diff-C ((t (:background "Grey" :foreground "black"))))
- '(helm-grep-file ((t (:foreground "magenta" :underline t))))
- '(helm-selection ((t (:background "brightblack" :foreground "brightyellow"))))
- '(helm-source-header ((t (:background "color-235" :foreground "white" :weight bold :height 1.3 :family "Sans Serif"))))
- '(helm-swoop-target-line-face ((t (:background "yellow" :foreground "#222222"))))
- '(helm-swoop-target-word-face ((t (:background "magenta" :foreground "#ffffff"))))
- '(linum-highlight-face ((t (:inherit default :background "color-235" :foreground "brightred"))))
- '(mode-line ((t (:background "color-235" :inverse-video nil))))
- '(mode-line-inactive ((t (:background "color-235" :inverse-video nil))))
- '(region ((t (:background "brightblack")))))
-
-;; no menu or welcome
-(menu-bar-mode -1)
-(tool-bar-mode -1)
-(setq inhibit-startup-message t)
-
 (when (>= emacs-major-version 24)
   (require 'package)
   (add-to-list
@@ -53,41 +6,15 @@
    t)
     (package-initialize))
 
-;; custom theme
-(load-theme 'seshu)
-
-;; window switching
-(global-set-key (kbd "C-c l") 'windmove-left)
-(global-set-key (kbd "C-c r") 'windmove-right)
-(global-set-key (kbd "C-c u") 'windmove-up)
-(global-set-key (kbd "C-c d") 'windmove-down)
-
-;; window number
-(require 'window-number)
-(window-number-mode 1)
-(window-number-meta-mode 1)
-
 ;; hlinum
 (require 'hlinum)
 (hlinum-activate)
 (setq linum-format "%d ")
 (global-linum-mode 1)
 
-;; lua
-(autoload 'lua-mode "lua-mode" "Lua editing mode." t)
-(add-to-list 'auto-mode-alist '("\\.lua$" . lua-mode))
-(add-to-list 'interpreter-mode-alist '("lua" . lua-mode))
-
 ;; gdb
 (setq gdb-many-windows t
       gdb-show-main t)
-
-;; sml
-(setq sml/theme 'respectful)
-(sml/setup)
-
-;; cuda
-(add-to-list 'auto-mode-alist '("\\.cu\\'" . c++-mode))
 
 ;; rtags
 (require 'rtags)
