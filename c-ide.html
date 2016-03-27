@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>Emacs as C++ IDE</title>
-<!-- 2016-03-27 Sun 12:43 -->
+<!-- 2016-03-27 Sun 16:34 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <style type="text/css">
@@ -87,7 +87,7 @@
     { background-color: #ffff00; color: #000000; font-weight: bold; }
   /*]]>*/-->
 </style>
-<link rel="stylesheet" type="text/css" href="static/worg.css" />
+<link rel="stylesheet" type="text/css" href="./static/worg.css" />
 <script type="text/javascript">
 /*
 @licstart  The following is the entire license notice for the
@@ -210,8 +210,8 @@ manager.
 
 <div class="org-src-container">
 
-<pre class="src src-emacs-lisp">(<span style="color: #00ffff;">require</span> '<span style="color: #7fffd4;">rtags</span>)
-(<span style="color: #00ffff;">require</span> '<span style="color: #7fffd4;">company-rtags</span>)
+<pre class="src src-emacs-lisp">(<span class="org-keyword">require</span> '<span class="org-constant">rtags</span>)
+(<span class="org-keyword">require</span> '<span class="org-constant">company-rtags</span>)
 
 (setq rtags-completions-enabled t)
 (eval-after-load 'company
@@ -365,7 +365,7 @@ init file:
 (add-hook 'c-mode-hook 'irony-mode)
 (add-hook 'objc-mode-hook 'irony-mode)
 
-(<span style="color: #00ffff;">defun</span> <span style="color: #87cefa;">my-irony-mode-hook</span> ()
+(<span class="org-keyword">defun</span> <span class="org-function-name">my-irony-mode-hook</span> ()
   (define-key irony-mode-map [remap completion-at-point]
     'irony-completion-at-point-async)
   (define-key irony-mode-map [remap complete-symbol]
@@ -459,7 +459,7 @@ To add support for completing C++ headers:
 
 <div class="org-src-container">
 
-<pre class="src src-emacs-lisp">(<span style="color: #00ffff;">require</span> '<span style="color: #7fffd4;">company-irony-c-headers</span>)
+<pre class="src src-emacs-lisp">(<span class="org-keyword">require</span> '<span class="org-constant">company-irony-c-headers</span>)
 (eval-after-load 'company
   '(add-to-list
     'company-backends '(company-irony-c-headers company-irony)))
@@ -500,13 +500,13 @@ emacs init file:
 
 <div class="org-src-container">
 
-<pre class="src src-emacs-lisp">(<span style="color: #00ffff;">require</span> '<span style="color: #7fffd4;">flycheck-rtags</span>)
+<pre class="src src-emacs-lisp">(<span class="org-keyword">require</span> '<span class="org-constant">flycheck-rtags</span>)
 
-(<span style="color: #00ffff;">defun</span> <span style="color: #87cefa;">my-flycheck-rtags-setup</span> ()
+(<span class="org-keyword">defun</span> <span class="org-function-name">my-flycheck-rtags-setup</span> ()
   (flycheck-select-checker 'rtags)
-  (setq-local flycheck-highlighting-mode nil) <span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">RTags creates more accurate overlays.</span>
+  (setq-local flycheck-highlighting-mode nil) <span class="org-comment-delimiter">;; </span><span class="org-comment">RTags creates more accurate overlays.</span>
   (setq-local flycheck-check-syntax-automatically nil))
-<span style="color: #ff7f24;">;; </span><span style="color: #ff7f24;">c-mode-common-hook is also called by c++-mode</span>
+<span class="org-comment-delimiter">;; </span><span class="org-comment">c-mode-common-hook is also called by c++-mode</span>
 (add-hook 'c-mode-common-hook #'my-flycheck-rtags-setup)'))
 </pre>
 </div>
@@ -561,7 +561,7 @@ your project root create a .dir-locals.el containing the following:
 
 <div class="org-src-container">
 
-<pre class="src src-emacs-lisp">((nil . ((cmake-ide-build-dir <span style="color: #ffa07a;">"&lt;PATH_TO_PROJECT_BUILD_DIRECTORY&gt;"</span>))))
+<pre class="src src-emacs-lisp">((nil . ((cmake-ide-build-dir <span class="org-string">"&lt;PATH_TO_PROJECT_BUILD_DIRECTORY&gt;"</span>))))
 </pre>
 </div>
 
@@ -575,7 +575,7 @@ your RTags index as well.
 </div>
 </div>
 <div id="postamble" class="status">
-<p class="date">Created: 2016-03-27 Sun 12:43</p>
+<p class="date">Created: 2016-03-27 Sun 16:34</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>

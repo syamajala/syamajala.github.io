@@ -1,5 +1,5 @@
 #+TITLE: Emacs as C++ IDE
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="static/worg.css" />
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./static/worg.css" />
 #+options: num:nil
 
 This guide is meant as supplement to [[http://tuhdo.github.io/c-ide.html][Tudho's C/C++ Development
