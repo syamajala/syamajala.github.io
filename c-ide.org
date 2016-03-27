@@ -1,0 +1,1620 @@
+#+TITLE: Emacs as C++ IDE
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="static/worg.css" />
+
+This guide is meant as supplement to [[http://tuhdo.github.io/c-ide.html][Tudho's C/C++ Development
+Enivornment for Emacs Guide]]. It assumes you use cmake and want to setup
+RTags and Irony with Company and Helm.
+
+* Source code navigation
+:PROPERTIES:
+:ID: source-navigation
+:END:
+** Prerequisite:
+:PROPERTIES:
+:ID:       b1292347-d0ed-4421-9905-33f1050883b2
+:END:
+
+- Build and install RTags using the [[https://github.com/Andersbakken/rtags#tldr-quickstart][RTags Quickstart
+  Guide]]. Alternatively install RTags using your distribution's package
+  manager.
+
+- Install =rtags= from MELPA and add the following to your emacs init file:
+
+#+begin_src emacs-lisp
+(require 'rtags)
+(require 'company-rtags)
+
+(setq rtags-completions-enabled t)
+(push 'company-rtags company-backends)
+(setq rtags-autostart-diagnostics t)
+(setq rtags-use-helm t)
+(rtags-enable-standard-keybindings)
+#+end_src
+
+To enable RTags and flycheck integration add the following:
+
+#+begin_src emacs-lisp
+(require 'flycheck-rtags)
+
+(defun my-flycheck-rtags-setup ()
+  (flycheck-select-checker 'rtags)
+  (setq-local flycheck-highlighting-mode nil) ;; RTags creates more accurate overlays.
+  (setq-local flycheck-check-syntax-automatically nil))
+;; c-mode-common-hook is also called by c++-mode
+(add-hook 'c-mode-common-hook #'my-flycheck-rtags-setup)'))
+#+end_src
+
+Before using =RTags= you need to start rdm and index your project.
+
+#+begin_src shell-script
+  $ rdm &
+  $ cd /path/to/project/root
+  $ cmake . -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+  $ rc -J .
+#+end_src
+
+We'll see how to automate this process with cmake-ide below.
+
+** Basic movements
+:PROPERTIES:
+:ID:       45f1bb42-08e5-43b9-8ea9-7b5e1124f89e
+:END:
+- *C-M-f* runs =forward-sexp=, move forward over a balanced
+  expression that can be a pair or a symbol.
+
+  # [[file:static/c-ide/forward-func.gif][file:static/c-ide/forward-func.gif]]
+
+- *C-M-b* runs =backward-sexp=, move backward over a balanced
+  expression that can be a pair or a symbol.
+
+  # [[file:static/c-ide/backward-func.gif][file:static/c-ide/backward-func.gif]]
+
+- *C-M-k* runs =kill-sexp=, kill balanced expression
+  forward that can be a pair or a symbol.
+
+  # [[file:static/c-ide/kill-func-body.gif][file:static/c-ide/kill-func-body.gif]]
+
+- *C-M-<SPC>* or *C-M-@* runs =mark-sexp=, put mark after
+  following expression that can be a pair or a symbol.
+
+  # [[file:static/c-ide/mark-func-body.gif][file:static/c-ide/mark-func-body.gif]]
+
+- *C-M-a* runs =beginning-of-defun=, which moves point to beginning of
+  a function.
+
+  # [[file:static/c-ide/beginning-of-defun.gif][file:static/c-ide/beginning-of-defun.gif]]
+
+- *C-M-e* runs =end-of-defun=, which moves point to end of a
+  function.
+
+  # [[file:static/c-ide/end-of-defun.gif][file:static/c-ide/end-of-defun.gif]]
+
+- *C-M-h* runs =mark-defun=, which put a region around whole current
+  or following function.
+
+  # [[file:static/c-ide/mark-defun.gif][file:static/c-ide/mark-defun.gif]]
+# ** Find definitions in current buffer
+
+# If you use Helm, use =moo-jump-local= from [[https://github.com/abo-abo/function-args][function-args]] package. You
+# can use it as an outline tree like in other IDEs. Here is a demo:
+
+# [[file:static/c-ide/moo-jump-local.gif][file:static/c-ide/moo-jump-local.gif]]
+
+** Find definitions in project
+:PROPERTIES:
+:ID:       0331265b-7c3f-457e-ba1d-ef6c3cd24208
+:END:
+- *C-c-r .* runs =rtags-find-symbol-at-point=, which jumps to the
+  definition of the symbol under the cursor.
+
+** Find references in project
+:PROPERTIES:
+:ID:       410cfad4-a08d-4139-8c37-cb1bff5bd44e
+:END:
+- *C-c-r .* runs =rtags-find-references-at-point=, which lists all
+  references to the symbol under the cursor.
+
+- *C-c-r <* runs =rtags-find-references=, which prompts for the symbol
+  name and finds all references.
+
+- *C-c-r >* runs =rtags-find-symbol=, which prompts for symbol name and finds all references.
+
+** Find files in project
+:PROPERTIES:
+:ID:       b6c7d5a9-2fce-4488-a7d5-3eb301b6b89a
+:END:
+- *C-c r ;* runs =rtags-find-file=, which prompts for file name to
+  search for out of currently indexed files.
+
+Alternatively, this can be better accomplished with [[http://tuhdo.github.io/c-ide.html#orgheadline38][Projectile]].
+
+** View visited tags with tag stack
+:PROPERTIES:
+:ID:       db6bf87e-969d-42b8-ae60-b0b58f13e073
+:END:
+- *C-c r [* rtags-location-stack-back
+  Jumps to last visited tag.
+
+- *C-c r ]* rtags-location-stack-forward
+  Moves forward in location stack.
+
+# * Browse source tree with =Speedbar= file browser
+# :PROPERTIES:
+# :ID: speedbar
+# :END:
+# If you want a static outline tree, Emacs also has a more one:
+# =Speedbar=. To use Speed bar, =M-x speedbar= and a frame that contains
+# a directory tree appear. In this directory, to the left of a file or
+# directory name is an icon with =+= sign in it. You can click the icon
+# to open the content of a node. If the node is a file, the children of
+# the files are tags (variable and function definitions) of the file; if
+# the node is a directory, the children of the node are files in that
+# directory. One important thing to remember, Speedbar only lists files
+# that match =speedbar-file-regexp=, that contains the extensions for
+# common programming languages. If you don't see files in your
+# programming languages listed, consider adding it the regexp list.
+
+# *Basic usage*:
+
+# - Use *SPC* to open the children of a node.
+
+# - *RET* to open the node in another window. If node is a file, open
+#   that file; if node is a directory, enter that directory; if node is
+#   a tag in a file, jump to the location of that tag in the file.
+
+# - *U* to go up parent directory.
+
+# - *n* or *p* moves to next or previous node.
+
+# - *M-n* or *M-p* moves to next or previous node at the current level.
+
+# - *b* switches to buffer list using Speedbar presentation. You can
+#   also open children of each buffer.
+
+# - *f* switches back to file list.
+
+# To enable =speedbar= to show all files:
+
+# #+begin_src emacs-lisp
+#   (setq speedbar-show-unknown-files t)
+# #+end_src
+
+# ** Package: =sr-speedbar=
+# :PROPERTIES:
+# :ID:       1824d791-2592-4efa-90b7-845e6a68681d
+# :END:
+
+# However, you may feel that a frame is difficult to use. To solve this
+# issue, you need =sr-speedbar=, which can be installed via
+# MELPA.
+
+# - To open =sr-speedbar=, execute the command =sr-speedbar-open= or
+#   =sr-speedbar-toggle=.
+
+# - To close =sr-speedbar=, execute the command =sr-speedbar-close= or
+#   =sr-speedbar-toggle= again.
+
+# Best is to use =sr-speedbar-toggle= only, for simplicity.
+
+# =sr-speedbar= gives the following improvements:
+
+# - Automatically switches directory tree - when you switch buffer - to
+#   the =default-directory= of current buffer.
+# - Use an Emacs window instead of frame, make it easier to use.
+# - *C-x 1* deletes every window except Speedbar, so you won't have to
+#   open again.
+# - You can prevent *C-x o* to jump to =sr-speedbar= window by setting
+#   =sr-speedbar-skip-other-window-p= to `t`. You can still move to
+#   =sr-speedbar= window using either the mouse or [[http://www.emacswiki.org/emacs-en/WindMove][windmove]].
+
+# _Demo_: In the demo, you can see that the function =set-cpu-active= is
+# being highlighted. That's what happens when you press *RET* on a tag:
+# Speedbar moves to the location of that tag and highlight it. Looking
+# at the Speedbar, under =set-cpu-active= node, it contains these
+# children:
+
+# - The first child is always the return type, =void=.
+# - The subsequent children are function parameters. Inside each
+#   function parameter node is its type.
+
+# [[file:static/c-ide/sr-speedbar.gif][file:static/c-ide/sr-speedbar.gif]]
+* General completion with =company-mode=
+:PROPERTIES:
+:ID: company
+:END:
+=company-mode= is a text completion framework for Emacs. The name
+stands for "complete anything". It uses pluggable back-ends and
+front-ends to retrieve and display completion candidates.
+
+It comes with several back-ends such as Elisp, Clang, Semantic, Eclim,
+Ropemacs, Ispell, CMake, BBDB, Yasnippet, dabbrev, etags, gtags,
+files, keywords and a few others.
+
+After installing =company-mode= from MELPA, activate it globally:
+
+#+begin_src emacs-lisp
+  (require 'company)
+  (add-hook 'after-init-hook 'global-company-mode)
+#+end_src
+
+*General Usage*: Completion will start automatically after you type a
+few letters. Use *M-n* and *M-p* to select, *<return>* to complete or
+*<tab>* to complete the common part. Search through the completions
+with *C-s*, *C-r* and *C-o*. Press *M-(digit)* to quickly complete
+with one of the first 10 candidates. When the completion candidates
+are shown, press *<f1>* to display the documentation for the selected
+candidate, or *C-w* to see its source. Not all back-ends support
+this.
+
+The variable =company-backends= specifies a list of backends that
+=company-mode= uses to retrieves completion candidates for you.
+
+That's the basic. In the later sections, you will configure
+=company-mode= to provide completion candidates.
+* Demo project
+:PROPERTIES:
+:ID: demo-project
+:END:
+I uploaded a demo project for you to play with completion feature
+[[https://github.com/tuhdo/c-demo-project][here]]. The project has this structure:
+
+#+begin_src fundamental
+  project_root/
+              Makefile
+              src/
+                  main.c
+                  lib.c
+                  lib2.c
+                  feature1/
+                      feature1.c
+              include1/
+                  lib.h
+                  feature1/
+                      feature1.h
+              include2/
+                  lib2.h
+#+end_src
+
+For the =.h= files, all have this content:
+
+#+begin_src c
+  void filename_func1();
+  int filename_func2(int a, int b);
+#+end_src
+
+For =.c= files, except for =main.c=, all have this template:
+
+#+begin_src c
+  #include "filename.h"
+
+  void filename_func1() { }
+
+  int filename_func2(int a, int b) { }
+#+end_src
+
+=filename= or =FILENAME= is actual filename like =lib1=, =lib2=...
+
+The files look silly but good enough for our learning purpose.
+
+* Source code completion using Clang
+:PROPERTIES:
+:ID: company-clang
+:END:
+To use =company-mode= with Clang, add this configuration:
+
+#+begin_src emacs-lisp
+  (setq company-backends (delete 'company-semantic company-backends))
+  (define-key c-mode-map  [(tab)] 'company-complete)
+  (define-key c++-mode-map  [(tab)] 'company-complete)
+#+end_src
+
+You have two commands for completing C/C++ code:
+
+- =company-clang=: use =clang= to retrieve completion candidates. You
+  will have completion with system header files, but not your
+  project. By default, =company-complete= already includes
+  =company-clang= backend, so you can use =company-complete= to
+  complete for many thing. Note that in the configuration for
+  =company-mode= above, we have to delete =company-semantic=,
+  otherwise =company-complete= will use =company-semantic= instead of
+  =company-clang=, because it has higher precedence in
+  =company-backends=. =company-semantic= will be discuss in the CEDET
+  section.
+
+  To retrieve completion candidates for your projects, you will have
+  to tell Clang where your include paths are. Create a file named
+  =.dir-locals.el= at your project root:
+
+  #+begin_src emacs-lisp
+    ((nil . ((company-clang-arguments . ("-I/home/<user>/project_root/include1/"
+                                         "-I/home/<user>/project_root/include2/")))))
+  #+end_src
+  
+If you put a file with a special name .dir-locals.el in a directory,
+Emacs will read it when it visits any file in that directory or any of
+its subdirectories, and apply the settings it specifies to the file’s
+buffer. If you want to know more, read [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Directory-Variables.html][GNU Emacs Manual -
+Per-Directory Local Variables]]. If you use Helm, you can easily insert
+absolute path by *C-c i* at the current path in =helm-find-files=
+(bound to *C-x C-f* by default in my demo =.emacs.d= at the beginning):
+
+[[file:static/c-ide/helm-files-insertion.gif][file:static/c-ide/helm-files-insertion.gif]] 
+
+In the above example, =nil= means apply the settings to any file or
+sub-directory visited. If =non-nil=, you have to specify a major mode
+and the settings are applied to major modes only. You set
+=company-clang= to =c-mode= and =c++-mode= anyway, so there's no
+problem setting major mode to nil. The remaining is a key-value pair
+of variable and value of that variable. =company-clang-arguments= is
+where you can tell include paths, and it takes a list of strings of
+include paths, as you can see above. After that, =company-clang= can
+see include paths in your project. If you add something new, like an
+include path, to your =.dir-locals.el= and is editing some source
+file, reopen the file for the new values to take effect.
+
+- =company-gtags=: use GTAGS database from =GNU Global= to retrieve
+  completion candidates. It displays ALL completion candidates in
+  GTAGS database regarding of scope. Use =company-gtags= to provide
+  code completion in your current project.
+
+*_Exercise_*:
+
+- Create a =.dir-locals.el= at =project_root=.
+- Add this Emacs Lisp code:
+
+  #+begin_src emacs-lisp
+    ((nil . ((company-clang-arguments . ("-I/home/<user>/project_root/include1/"
+                                         "-I/home/<user>/project_root/include2/")))))
+  #+end_src
+
+Replace =<user>= with your username.
+
+- Enter any source file and start completion. You will see that
+  =company-clang= correctly retrieves completion candidates in those directories.
+ 
+* Header file completion with =company-c-headers= package
+:PROPERTIES:
+:ID:       6e05e8a5-04a3-4279-bf99-22fd627c0e92
+:END:
+[[https://github.com/randomphrase/company-c-headers][company-c-headers]] provides auto-completion for C/C++ headers using
+Company. After installing from MELPA, set it up:
+
+#+begin_src emacs-lisp
+  (add-to-list 'company-backends 'company-c-headers)
+#+end_src
+
+[[file:static/c-ide/company-c-header.png][file:static/c-ide/company-c-header.png]]
+
+*_IMPORTANT_*: If you want to complete C++ header files, you have to
+add its paths since by default =company-c-headers= only includes these
+two system include paths: =/usr/include/= and
+=/usr/local/include/=. To enable C++ header completion for standard
+libraries, you have to add its path, for example, like this: 
+
+#+begin_src emacs-lisp
+  (add-to-list 'company-c-headers-path-system "/usr/include/c++/4.8/")
+#+end_src
+
+After that, you can complete C++ header files. To complete project
+local, use =company-c-headers-path-user= and put it in
+=.dir-locals.el=.
+
+* CEDET
+:PROPERTIES:
+:ID: cedet
+:END: 
+** What is CEDET?
+:PROPERTIES:
+:ID: what-is-cedet
+:END:
+CEDET is a (C)ollection of (E)macs (D)evelopment (E)nvironment (T)ools written
+with the end goal of creating an advanced development environment in
+Emacs. CEDET includes common features such as intelligent completion,
+source code navigation, project management, code generation with
+templates . CEDET also provides a framework for working with
+programming languages; support for new programming languages can be
+added and use CEDET to provide IDE-like features.
+
+CEDET can give you code completion, but this process takes time and can block
+your Emacs while it is doing so. If you have large project, you may not want to
+use CEDET for code completion. But, you can use CEDET perfectly for utilities
+that work at file scope i.e. refactoring local variables in a function in a file.
+
+** Why use CEDET?
+:PROPERTIES:
+:ID: why-use-cedet
+:END:
+CEDET is simple to setup and portable (right winthin Emacs and written
+entirely with Emacs Lisp). Without CEDET, you have to use external
+tools and third party Emacs packages. The downside of external tools
+is that they are not specifically designed for Emacs. They have
+similar use cases, but not always satisfying. For example, source code
+indexing tools such as GNU Global and Exuberant Ctags are really good
+at working static source code, but they do not keep track changes in
+real time; CEDET does:
+
+[[file:static/auto_complete.gif][file:static/auto_complete.gif]]
+
+As you can see, CEDET recognizes when =printk.h= is included and
+provides appropriate completion candidates. In contrast, non-context
+sentisve completion is like this:
+
+[[file:static/c-ide/company-clang-company-gtags.gif][file:static/c-ide/company-clang-company-gtags.gif]]
+
+In this case, the completion system gets all candidates straight from
+GNU Global generated database without considering current context.
+
+The disadvantage is that CEDET is written in Emacs Lisp, and it is
+bound to the performance limitations of Emacs. Even though, CEDET is
+still really fast for moderate-size source files. CEDET also makes use
+of external tools like GNU Global or Cscope or Exuberant Ctags for
+finding symbol references/definition in a project to reduce its
+workload.
+
+** Installation
+:PROPERTIES:
+:ID: install-cedet
+:END:
+CEDET was merged into Emacs since 23.2. You do not need to install
+CEDET manually. However, you can also use the development repository
+that contains latest bug fixes and more features. Nevertheless, the
+built-in Emacs is still adequate for daily usage and convenient for
+trying out before actually cloning and use the development
+version. Skip this section if you only want to try Emacs. Come back
+later if you really like it.
+
+If you really want to use the development version with latest feature,
+checkout this branch:
+
+#+begin_src sh
+  git clone http://git.code.sf.net/p/cedet/git cedet
+#+end_src
+
+Be sure to place the checked out =cedet= directory in your
+=~/.emacs.d=. Then compile it:
+
+#+begin_src sh
+  cd cedet
+  make # wait for it to complete
+  cd contrib
+  make
+#+end_src
+
+Finally, assume that you placed your newly cloned CEDET in
+=~/.emacs.d=, load it into your Emacs:
+
+#+begin_src emacs-lisp
+  (load-file (concat user-emacs-directory "/cedet/cedet-devel-load.el"))
+  (load-file (concat user-emacs-directory "cedet/contrib/cedet-contrib-load.el"))
+#+end_src
+
+** Semantic minor modes
+:PROPERTIES:
+:ID: semantic-minor-modes
+:END:
+=Semantic= is a package that provides language-aware editing commands
+based on source code parsers. Parsing is a process of analyzing source
+code based on programming language syntax. Emacs understands your
+source code through this process to provides features such as
+contextual code completion, code navigation. Here is an example how
+Semantic helps you provides completion for Boost:
+
+[[file:static/c-ide/semantic-boost-demo.gif][file:static/c-ide/semantic-boost-demo.gif]]
+
+**** *Setup Semantic*
+:PROPERTIES:
+:ID: setup-semantic
+:END:
+To enable code completion using Semantic, add the following code:
+
+#+begin_src emacs-lisp
+  (require 'cc-mode)
+  (require 'semantic)
+
+  (global-semanticdb-minor-mode 1)
+  (global-semantic-idle-scheduler-mode 1)
+
+  (semantic-mode 1)
+#+end_src
+
+**** *Command*: =semantic-mode=
+:PROPERTIES:
+:ID: semantic-mode
+:END:
+This command activates =semantic-mode=. In Semantic mode, Emacs parses
+the buffers you visit for their semantic content. The parsing looks
+like this:
+
+[[file:static/c-ide/semantic-parsing.gif][file:static/c-ide/semantic-parsing.gif]]
+
+Notice that at the bottom, Emacs prints messages like this: =Parsing
+<file> (LL)...<progress in percentage>=. This is common behavior of
+=Semantic=: when you perform a jump to a symbol or perform a
+completion, =Semantic= tries to be accurate by parsing all the
+included files and all the included files in the included files and so
+on, until it reaches the end:
+
+You may worry that this process takes a long time. Sometimes, it
+does. However, this is just a one time process. Once it is parsed,
+Semantic will cache the parsing result for future use. The next time
+you perform some action on the parsed code, such as code completion,
+you will get your desired output instantly.
+
+**** *Command*: =global-semanticdb-minor-mode=
+:PROPERTIES:
+:ID: global-semantic-minor-mode
+:END:
+As mentioned above, Semantic caches parsing result for future
+use. To do that, =semanticdb-minor-mode= must be activated. In
+Semantic DB mode, Semantic parsers store results in a database, which
+can be saved for future Emacs sessions. The cache is saved in
+directory specified by =semanticdb-default-save-directory=
+variable. The default directory is =~/.emacs.d/semanticdb=.
+
+**** *Command*: =global-semantic-idle-scheduler-mode=
+:PROPERTIES:
+:ID: semantic-idle-scheduler-mode
+:END:
+When =semantic-idle-scheduler-mode= is enabled, Emacs periodically
+checks to see if the buffer is out of date, and reparses while the
+user is idle (not typing). When this mode is off, a buffer is only
+reparsed when user explicitly issue some command.
+
+With =semantic-idle-scheduler-mode=, Emacs keeps track live changes of
+your source code.
+**** *Add more system include paths*
+:PROPERTIES:
+:ID:  semantic-add-system-includes
+:END:
+By default, Semantic automatically includes some default system
+include paths such as =/usr/include=, =/usr/local/include=... You can
+view the list of include paths in
+=semantic-dependency-system-include-path=. To add more include paths,
+for example Boost include paths, use the function
+=semantic-add-system-include= like this:
+
+#+begin_src emacs-lisp
+  (semantic-add-system-include "/usr/include/boost" 'c++-mode)
+  (semantic-add-system-include "~/linux/kernel")
+  (semantic-add-system-include "~/linux/include")
+#+end_src
+
+If you want the system include paths to be available on both C/C++
+modes, then ignore the optional mode argument in
+=semantic-add-system-include=.
+**** Completion using =company-mode=
+:PROPERTIES:
+:ID: company-semantic
+:END:
+=companh-mode= provides a command called =company-semantic= that uses
+SemanticDB to retrieve completion candidates. Function interface of
+each candidate is shown in the minibuffer. One nice thing of
+=company-semantic= is that it fixed an issue of original Semantic
+completion =semantic-ia-complete-symbol=: it can show you completions
+even if there's no prefix. The original =semantic-ia-complete-symbol=
+requires to have at least one character as a prefix for finding
+completions.
+
+** CEDET can do more
+:PROPERTIES:
+:ID:  cedet-can-do-more
+:END:
+This guide only covers a portion of CEDET. Since Semantic parses
+source code and creates a database for code  completion, it would be
+useful to reuse the database for other features such as code
+navigation, jump to definition and gather references. These are cool
+features. For example, CEDET provide nice syntax highlighting for
+gathering references:
+
+[[file:static/c-ide/semantic-symref.gif][file:static/c-ide/semantic-symref.gif]]
+
+The above feature is called Semantic Symref. It queries tag references
+from SemanticDB and display the result in another buffer. Please
+refer to [[https://www.gnu.org/software/emacs/manual/html_node/semantic/SymRef.html][GNU Manual - Symbol References]] for more info. If your project
+is only the size of Emacs or similar, then Semantic Symref is a viable
+choice. Remember that when entering new files, Semantic takes time to
+parse and if you gather references for the first time, you will have
+to wait for a while for Semantic doing its job. After the first time,
+subsequent uses of Semantic Symref happens instantly.
+
+But, for navigating around the source tree, we already have =ggtags=
+and =helm-gtags=, which uses GNU Global for much faster indexing for
+large project like Linux kernel. The only thing that other tools
+cannot do, is context-sensitive completion. That's why we only use
+CEDET for code completion in this guide. Nevertheless, Semantic Symref
+is still a viable choice for small to medium sized projects. Choose
+the one you prefer.
+
+Other solutions that use =clang= is quite good but not there yet. For
+example, [[https://github.com/brianjcj/auto-complete-clang][auto-complete-clang]] is fine for getting system header
+candidates (since =clang= has system paths by default), but it has no
+concept of project and is not aware of project include path. You can
+add more arbitrary include paths to [[https://github.com/brianjcj/auto-complete-clang][auto-complete-clang]], but it won't
+be pretty: once you add an include path for a project, it is visible
+to all other projects since the include path is treat as system
+include path. That means, whenever you try to complete something, you
+get irrelevant candidates from other projects as well. Quite
+annoying. =company-clang= also has the same problem. Another solution
+is [[https://github.com/Andersbakken/rtags][rtags]], but it is really complicated to setup, especially if you use
+=make=; I never succeed with it. =clang= based packages still have a
+long way to go. CEDET also supports =clang= for retrieving completion
+candidates. It also has the limitations of other packages.
+
+CEDET is best used with new project, because Semantic parse code as
+you write. As a result, you won't have to wait for parsing unknown
+source files to get completion candidates.
+
+** Source code navigation using Senator
+:PROPERTIES:
+:ID: source-code-navigation-using-senator
+:END:
+ Senator is a part of CEDET. Senator stands for SEmantic
+ NAvigaTOR. Senator provides some useful commands for operating on
+ semantic tags in SemanticDB. As you can see, another utility makes
+ use of SemanticDB, aside from smart completion. It is like the heart
+ of CEDET: once Semantic fails to parse, tools centered around it fail
+ as well. If such situation happens, you always have a reserved and
+ simpler solution: use GNU Global with =ggtags= or =helm-gtags=
+ frontends. The following commands are provided by Senator:
+
+*** Navigation
+:PROPERTIES:
+:ID: senator-navigation
+:END:
+
+Senator provides commands for navigating by tag.
+
+- *C-c , n* runs =senator-next-tag=, navigate to the next Semantic
+  tag.
+
+- *C-c , p* runs =senator-previous-tag=, navigate to the previous
+  Semantic tag.
+
+  Here is how both of those commands work:
+
+  [[file:static/c-ide/senator-next-previous-tag.gif][file:static/c-ide/senator-next-previous-tag.gif]]
+
+  As you see,the C macro (in the screenshot, its =DECLARE_COMPLETION=)
+  is not considered a tag.
+
+- =senator-jump= (only available in CEDET bzr), specify a tag to jump
+  to. *TAB* for a list of available Semantic tags in current buffer,
+  similar to *TAB* in *M-x* in stock Emacs. If you use Helm, use
+  =moo-jump-local= from the package =function-args= instead.
+
+  Demo (=helm-mode= is disabled):
+
+  [[file:static/c-ide/senator-jump.gif][file:static/c-ide/senator-jump.gif]]
+
+- *C-c , u* runs =senator-go-to-up-reference=, move up one reference
+  level from current tag. An upper reference level of a tag is the
+  source that defines the tag or includes the tag. This is incredibly
+  useful when you want to jump from a function declaration in a class
+  to its definition, or jump to the class that a function belongs to,
+  quickly.
+
+  [[file:static/c-ide/senator-go-to-up-reference.gif][file:static/c-ide/senator-go-to-up-reference.gif]]
+
+  In the demo, I only use =senator-go-to-up-reference= to switch from
+  a declaration, that is =PIC32F42(string Name, short MemorySize);= in
+  =PIC32F42.h= to its implementation in =PIC32F42.c=. *C-c , u* again,
+  point jump is on the class =PIC32F42=, which is the class that the
+  function belongs. Class =PIC32F42= has its parent class
+  =Microcontrller=, and I run *C-c , u* again to move point to
+  =Microcontrller= class. At this point, I cannot move further.
+
+Semantic also provides a useful command for finding all references of
+a tag, that is =semantic-symref=, as demonstrated in previous
+section. On a symbol, *C-c , g* and a prompt appear asking for a tag
+for gathering references, with the default is the symbol at
+point. Leave prompt blank and *RET* to use the default or enter
+another symbol if you change your mind.
+*** Copy/Paste
+:PROPERTIES:
+:ID:  senator-copy-paste
+:END:
+
+- =C-c , M-w= runs =senator-copy-tag=, take the current tag, and place
+  it in the tag ring.
+
+- =C-c , C-w= runs =senator-kill-tag=, take the current tag, place it
+  in the tag ring, and kill it. Killing the tag removes the text for
+  that tag, and places it into the kill ring. Retrieve that text with
+  *C-y*.
+
+  The above commands are basically like normal =M-w= and =C-w=, but are
+  used for tags. For example, run =C-c , C-w= with point inside a
+  function definition kills the whole function body and its
+  interface, or you can kill function parameters, and can be yanked
+  back with *C-y*:
+
+  [[file:static/c-ide/senator-kill-yank-tag.gif][file:static/c-ide/senator-kill-yank-tag.gif]]
+
+  As you see, the function body and its interface is killed and yanked
+  back with *C-y*. You can also see that the function parameter, aside
+  from its name, its type is also removed when the command is executed.
+
+- =C-c , C-y= runs =senator-yank-tag=, yank a tag from the tag
+  ring. The form the tag takes is different depending on where it is
+  being yanked to. For example, in previous example with =C-c , C-w=,
+  when you run *C-y*, it yanks the whole thing including function
+  interface and its body. *C-c , C-y* only yanks the function
+  interface.
+
+  [[file:static/c-ide/senator-yank-tag.gif][file:static/c-ide/senator-yank-tag.gif]]
+
+- =C-c , r= runs =senator-copy-tag-to-register=, copy the current tag
+  into a register. With prefix argument will delete the text of the
+  tag to the kill ring.
+
+*** Obsolete commands
+:PROPERTIES:
+:ID: senator-obsolete-commands
+:END:
+Senator also provides commands for code completion:
+=senator-complete-symbol= and =senator-completion-menu-popup=. Code
+completion provided by Senator is simpler than the actual completion
+provided by =semantic-ia-complete-symbol= command that is used by
+=moo-complete= for a list of candidates with full information, such as
+complete function interface is displayed correctly. These two
+completion commands are provided.
+
+** *(Optional)* Project management with EDE
+:PROPERTIES:
+:ID:  project-management-with-ede
+:END:
+EDE, short for Emacs Development Environment, is a generic interface
+for managing projects. In EDE, a project hierarchy matches a directory
+hierarchy. The project's topmost directory is called the project root,
+and its subdirectories are sub-projects.
+
+EDE can do many things but we will just use it for code completion at
+project level. To demonstrate the use of EDE, we will create a little
+project of our own.
+
+To setup EDE:
+
+#+begin_src emacs-lisp
+  (require 'ede)
+  (global-ede-mode)
+#+end_src
+
+Now, let's try completion in =main.c= using =moo-complete= or
+=company-semantic=. Nothing also happens. It is because Semantic only
+looks for header files in current directory by default. If you put it
+elsewhere, you have to tell Semantic where it is. This is not limited
+to only Semantic; you have to specify project include path in Eclipse
+as well.
+
+- Create a new file called =cedet-projects.el= in =~/.emacs.d/=.
+- In this file, add a new =ede-cpp-root-project= in this form:
+
+#+begin_src emacs-lisp
+  (ede-cpp-root-project "project_root"
+                        :file "/dir/to/project_root/Makefile")
+#+end_src
+
+The first argument to =ede-cpp-root-project= is project name. =:file=
+argument specifies path to project root. You must create a file in the
+project root, since EDE uses that file as an "anchor" to project
+root; in our case, =Makefile= is the anchor file. Not sure why EDE
+just straightly uses root directory.
+
+- Add include directories specific to the project and in your system:
+
+#+begin_src emacs-lisp
+  (ede-cpp-root-project "project_root"
+                        :file "/dir/to/project_root/Makefile"
+                        :include-path '("/include1"
+                                        "/include2") ;; add more include
+                        ;; paths here
+                        :system-include-path '("~/linux"))
+#+end_src
+
+=:include-path= specifies directories local to your projects that EDE
+should search first when looking for a header file. =:incluide-path=
+is relative to project root specified in =:file=.
+
+=:system-include-path= specifies system include paths that do not
+belong to current project. Note that despite it is called
+=system-include-path=, it does not have to be in place like
+=/usr/include=. You can specify any include directories outside of
+your current project as "system headers".
+
+After done setting up your project, save the file and execute that
+=ede-cpp-root-project= expression with *C-x C-e*. Now, Semantic is
+aware of your project include paths. However, you have to do one last
+thing: either close the file =main.c= and reopen it or =M-x
+semantic-force-refresh= to tell Semantic to analyze =main.c=
+again. Otherwise, Semantic will still keep the previous parsing result
+of this file and completion candidates won't be available. As a
+result, it is important to load EDE projects defined by
+=ede-cpp-root-project= before opening any project file.
+
+After that, try auto-completion and you will see everything is working
+fine again:
+
+[[file:static/c-ide/ede-project.gif][file:static/c-ide/ede-project.gif]]
+
+Summary:
+
+- EDE, short for Emacs Development Environment, is a generic interface
+  for managing projects.
+- EDE enables Semantic to find sources and perform project level
+  completions.
+- To add a C/C++ project, simply create a project definition with this
+  template in a file, such as =ede-projects.el=:
+
+#+begin_src emacs-lisp
+  (ede-cpp-root-project "project_root"
+                        :file "/dir/to/project_root/Makefile"
+                        :include-path '("/include1"
+                                        "/include2") ;; add more include
+                        ;; paths here
+                        :system-include-path '("~/linux"))
+#+end_src
+
+- Load =ede-projects.el= when Emacs start.
+- If you have opening files, either close or refresh it with =M-x
+  semantic-force-refresh= to make Semantic aware of new changes.
+
+Later, you will also learn another project management tool called
+=Projectile=. You may ask, why another project management tool? The
+differences are:
+
+- EDE is older, Projectile appears recently.
+- EDE manages project files to integrate with specific build system
+  and generate corresponding build file (such as Makefile; these
+  features are not covered in this guide). Projectile provides generic
+  file management operations such as quickly jump to file/directory in
+  project, list buffers that belong to current project...
+- EDE is part of CEDET suite; it is geared toward Semantic. For
+  example, we used EDE to tell Semantic where to retrieve correct
+  include paths for current project to perform smart completion in
+  previous section. Projectile provides a generic interface for
+  managing your project under a VCS or some supported build system.
+- Projectile is easier to learn than EDE.
+
+Both have some overlapping in features, such as Projectile provides
+basic tag navigation in project, but in general they support each
+other. For our basic usage, we use EDE for smart completion as in
+previous section and Projectile to navigate our project
+effortlessly.
+
+* Code refactoring
+You can use this package, [[https://github.com/tuhdo/semantic-refactor][Semantic Refactor]] for refactoring in small scale. The
+package offers the following feature:
+
+- Context-sensitive menu offers appropriate refactoring actions
+- Generate class implementation (also handles nested class and class template)
+- Generate class getters and setters
+- Generate function implementation (also handles function template)
+- Generate function prototype
+- Convert function to function pointer
+- Convert function to function parameter
+- Move semantic units (class, function, variable)
+- Extract function with proper type information
+- Precise local variable rename
+
+[[https://github.com/tuhdo/semantic-refactor/blob/master/srefactor-demos/demos.org][Please follow this link for demos]].
+
+* Navigate system include path
+:PROPERTIES:
+:ID:  navigate-system-include-path
+:END:
+Up until now we were only navigating code in a project using =GNU
+Global=. How about jumping to *system include headers*? You have a few
+options that I know:
+
+** Using =Semantic= with =semantic-ia-fast-jump= command
+:PROPERTIES:
+:ID: semantic-ia-fast-jump
+:END:
+Semantic provides a jump command based on the parsed tags produced by
+the Semantic C/C++ parser. To jump to any code in system include path,
+you must first tell Semantic where it is:
+
+#+begin_src emacs-lisp
+  (semantic-add-system-include "/usr/local/include")
+  (semantic-add-system-include "~/linux/include")
+#+end_src
+
+Then, if point is on an include header like =#include <iostream>= or a
+tag inside =iostream=, executing the command =semantic-ia-fast-jump=
+will jump to into header file or jump to the tag at point earlier that
+is inside =iostream=. If the tag is actually within =iostream= but you
+do not include =iostream=, Semantic won't be able to jump because it
+sees no appropriate header that contains the tag.
+
+The function =semantic-add-system-include= will add your include paths
+to =semantic-c-dependency-system-include-path= variable. By default,
+it only contains =/usr/include=. You can add more such as
+=/usr/local/include= or your own project, such as
+=~/linux/include=.
+
+The disadvantage of using Semantic is that for it may take brief while
+to parse, but for once; the next time you can jump to parsed source
+instantly.
+
+** Using generated database from =GNU Global=
+:PROPERTIES:
+:ID:  navigate-system-include-gnu-global
+:END:
+=GNU Global= has an environment variable named =GTAGSLIBPATH=. This
+variable holds GTAGS database of external libraries that your project
+depends on but not inside your project. For example, your project may
+rely on system headers such as =stdio.h=, =stdlib.h=... but these
+headers are internal to your project. However, remember that you can
+only jump to tag definitions of external dependencies, and nothing
+else (such as files or references). But, again, once you are inside
+the external library, you can start jumping around sicne it becomes
+your current project.
+
+To make =GNU Global= sees your system headers, follow these steps:
+
+- Export this environment variable in your shell init file, such as
+  =.bashrc= or =.zshrc=:
+
+#+begin_src sh
+  export GTAGSLIBPATH=$HOME/.gtags/
+#+end_src
+
+- Execute these commands in your terminal:
+
+#+begin_src sh
+  # Create a directory for holding database, since
+  # you cannot create a database in your system paths
+  mkdir ~/.gtags
+
+  # Create symbolic links to your external libraries
+  ln -s /usr/include usr-include
+  ln -s /usr/local/include/ usr-local-include
+
+  # Generate GNU Global database
+  gtags -c
+#+end_src
+
+The =-c= option tells GNU Global to generate tag database in compact
+format. It is necessary because if your project contains C++ headers like
+=Boost=, without =-c= your GTAGS database can be more than 1 GB. Same
+goes for =ctags=. The =GNU Global= devs explained that it is because
+the GTAGS database includes the image of tagged line, and the =Boost=
+headers have a lot of very long lines.
+
+After all the above steps, restart with a shell loaded with that
+variable. To verify Emacs gets the variable, =M-x getenv= and enter
+=GTAGSLIBPATH= and see if your predefined value is
+available. Executing =ggtags-find-tag-dwim= or =helm-gtags-dwim= jumps
+to the definition of a system tag like a normal tag.
+
+The disadvantage of using =GNU Global= is that currently it cannot
+include files without extension. In the C++ system include directory
+like =/usr/include/c++/4.8/=, it contains files without extension such
+as =iostream=, =string=, =set=, =map=.... so you can write =#include=
+directives without having to append =.h= at the end. =GNU Global= devs
+are considering to add support for this use case.
+
+* Project management with Projectile
+:PROPERTIES:
+:ID:  project-management-with-projectile
+:END:
+=Projectile= is a project interaction library for Emacs. Its goal is to
+provide a nice set of features operating on a project level without
+introducing external dependencies(when feasible). For instance -
+finding project files has a portable implementation written in pure
+Emacs Lisp without the use of GNU find (but for performance sake an
+indexing mechanism backed by external commands exists as well).
+
+Projectile tries to be practical - portability is great, but if some
+external tools could speed up some task substantially and the tools
+are available, Projectile will leverage them.
+
+By default, =git=, =mercurial=, =darcs= and =bazaar= are considered
+projects. So are =lein=, =maven=, =sbt=, =scons=, =rebar= and
+=bundler=. If you want to mark a folder manually as a project just
+create an empty =.projectile= file in it.
+
+You also install =Projectile= using MELPA and setup:
+
+#+begin_src emacs-lisp
+  (projectile-global-mode)
+#+end_src
+
+Prefix key of Projectile is *C-c p*. Some notable features:
+
+- Jump to any file in the project: *C-c p f*.
+- Jump to any directory in the project: *C-c p d*.
+- List buffers local to current project: *C-c p b*.
+- Jump to recently visited files in project: *C-c p e*.
+- Grep in project: *C-c p g s*
+- Multi-occur in project buffers: *C-c p o*.
+- Simple refactoring with text replace in current project: *C-c p r*.
+- Switch visited projects (visited once an Projectile remembers): *C-c p p*.
+
+Useful commands for working with C/C++ projects:
+
+- Run compilation command at project root: *C-c p c*. By default,
+  Projectile prompts the =make= command.
+
+- Switch between =.h= and =.c= or =.cpp=: *C-c p a*. If the filename -
+  without file extension - of current editing buffer is part of other
+  files, those files are listed as well. If there is only one file
+  with the same name but different extension, switch immediately. Here
+  is a demo:
+
+[[file:static/c-ide/projectile-find-other-file.gif][file:static/c-ide/projectile-find-other-file.gif]]
+
+There are more, you can find it in [[http://tuhdo.github.io/helm-projectile.html][my Projectile guide]]. You can also
+run *C-c p C-h* for a list of commands with *C-c p* prefix.
+
+* Source code information
+:PROPERTIES:
+:ID: source-code-information
+:END:
+** Command: =global-semantic-idle-summary-mode=
+:PROPERTIES:
+:ID:  global-semantic-idle-summary-mode
+:END:
+This mode, when enabled, displays function interface in the
+minibuffer:
+
+[[file:static/func_args.jpg][file:static/func_args.jpg]]
+
+It works well for C but not C++, since C++ can overload function and
+=semantic-idle-summary-mode= can only display one interface at a
+time. Since this mode is part of Semantic, it also relies on
+SemanticDB that is created from parsing source files.
+
+Setup:
+
+#+begin_src emacs-lisp
+  (global-semantic-idle-summary-mode 1)
+#+end_src
+
+** Command: =global-semantic-stickyfunc-mode=
+:PROPERTIES:
+:ID:  global-semantic-stickyfunc-mode
+:END:
+When enable, this mode shows the function point is currently in at the
+first line of the current buffer. This is useful when you have a very
+long function that spreads more than a screen, and you don't have to
+scroll up to read the function name and then scroll down to original
+position.
+
+[[
+
+https://github.com/tuhdo/semantic-stickyfunc-enhance#features][Please click here for demos]].
+
+Setup:
+
+#+begin_src emacs-lisp
+  (add-to-list 'semantic-default-submodes 'global-semantic-stickyfunc-mode)
+#+end_src
+
+One of the problem with current =semantic-stickyfunc-mode= is that it
+does not display all parameters that are scattered on multiple lines.
+This package handles that problem: [[https://github.com/tuhdo/semantic-stickyfunc-enhance][semantic-stickyfunc-enhance]]. Extra:
+stock =semantic-stickyfunc-mode= does not include assigned values to
+function parameters of Python. This package also fixed that problem.
+You can click the link to see demos.
+
+You can install the package via MELPA and load it:
+
+#+begin_src emacs-lisp
+  (require 'stickyfunc-enhance)
+#+end_src
+
+
+** Using =ggtags= + =eldoc=
+:PROPERTIES:
+:ID:  ggtags-and-eldoc
+:END:
+You can also use =ggtags= for displaying function interface at point
+in minibuffer:
+
+#+begin_src emacs-lisp
+  (setq-local eldoc-documentation-function #'ggtags-eldoc-function)
+#+end_src
+
+However, it won't have syntax highlighting.
+* Source code documentation
+:PROPERTIES:
+:ID: source-code-documentation
+:END:
+** Command: =man=
+:PROPERTIES:
+:ID: documentation-man
+:END:
+To read the documentation for symbol at point or a man entry of your
+choice, invoke =M-x man=.
+** Command: =helm-man-woman=
+:PROPERTIES:
+:ID:  documentation-helm-man-woman
+:END:
+If you use Helm, you should be able to use the command
+=helm-man-woman=, which is bound to *C-c h m* if you follow [[http://tuhdo.github.io/helm-intro.html][my Helm
+guide]]. The full guide for the command is [[http://tuhdo.github.io/helm-intro.html#sec-10][here]].
+
+[[file:static/part3/helm-man-woman.gif][file:static/part3/helm-man-woman.gif]]
+* Source code editing
+:PROPERTIES:
+:ID: source-code-editing
+:END:
+** Folding
+:PROPERTIES:
+:ID:  source-code-folding
+:END:
+Emacs has a minor mode called =hs-minor-mode= that allows users to
+fold and hide blocks of text. Blocks are defined by regular
+expressions which match the start and end of a text region. For
+example, anything in between ={= and =}= is a block. The regular
+expressions are defined in =hs-special-modes-alist=.
+
+Setup for C/C++:
+
+#+begin_src emacs-lisp
+  (add-hook 'c-mode-common-hook   'hs-minor-mode)
+#+end_src
+
+Default key bindings:
+
+| Key           | Binding                                    |
+|---------------+--------------------------------------------|
+| *C-c @ C-c*   | Command: =hs-toggle-hiding=                |
+|               | Toggle hiding/showing of a block           |
+|---------------+--------------------------------------------|
+| *C-c @ C-h*   | Command: =hs-hide-block=                   |
+|               | Select current block at point and hide it  |
+|---------------+--------------------------------------------|
+| *C-c @ C-l*   | Command: =hs-hide-level=                   |
+|               | Hide all block with indentation levels     |
+|               | below this block                           |
+|---------------+--------------------------------------------|
+| *C-c @ C-s*   | Command: =hs-show-block=                   |
+|               | Select current block at point and show it. |
+|---------------+--------------------------------------------|
+| *C-c @ C-M-h* | Command: =hs-hide-all=                     |
+|               | Hide all top level blocks, displaying      |
+|               | only first and last lines.                 |
+|---------------+--------------------------------------------|
+| *C-c @ C-M-s* | Command: =hs-show-all=                     |
+|               | Show everything                            |
+|---------------+--------------------------------------------|
+
+Demo:
+
+- Command: =hs-toggle-hiding=
+
+[[file:static/c-ide/hs-toggle-hiding.gif][file:static/c-ide/hs-toggle-hiding.gif]]
+
+** Narrowing
+:PROPERTIES:
+:ID: source-code-narrowing
+:END:
+Narrowing means making only a text portion in current buffer
+visible. Narrowing is useful when you want to perform text editing on
+a small part of the buffer without affecting the others. For example,
+you want to delete all =printf= statements in current functions, using
+=flush-lines= command. But if you do so, you will also delete =printf=
+outside the current function, which is undesirable. By narrowing, you
+can safely remove all those =printf= and be certain that nothing else
+is changed accidentally.
+
+Default key bindings:
+
+| Key       | Binding                                    |
+|-----------+--------------------------------------------|
+| *C-x n d* | Command: =narrow-to-defun=                 |
+|           | Narrow buffer to current function at point |
+|-----------+--------------------------------------------|
+| *C-x n r* | Command: =narrow-to-region=                |
+| *C-x n n* | Narrow buffer to active region             |
+|-----------+--------------------------------------------|
+| *C-x n w* | Command: =widen=                           |
+|           | Widen buffer                               |
+|-----------+--------------------------------------------|
+
+** Identation
+:PROPERTIES:
+:ID: source-code-indentation
+:END:
+*** Setup default C style
+:PROPERTIES:
+:ID:  indentation-default-c-style
+:END:
+Emacs offers some popular C coding styles. Select the one suitable for
+you:
+
+#+begin_src emacs-lisp
+    ;; Available C style:
+    ;; “gnu”: The default style for GNU projects
+    ;; “k&r”: What Kernighan and Ritchie, the authors of C used in their book
+    ;; “bsd”: What BSD developers use, aka “Allman style” after Eric Allman.
+    ;; “whitesmith”: Popularized by the examples that came with Whitesmiths C, an early commercial C compiler.
+    ;; “stroustrup”: What Stroustrup, the author of C++ used in his book
+    ;; “ellemtel”: Popular C++ coding standards as defined by “Programming in C++, Rules and Recommendations,” Erik Nyquist and Mats Henricson, Ellemtel
+    ;; “linux”: What the Linux developers use for kernel development
+    ;; “python”: What Python developers use for extension modules
+    ;; “java”: The default style for java-mode (see below)
+    ;; “user”: When you want to define your own style
+    (setq
+     c-default-style "linux" ;; set style to "linux"
+     )
+#+end_src
+
+*** Setup indentation
+:PROPERTIES:
+:ID: setup-indentation
+:END:
+By default, Emacs won't indent when press *RET* because the command
+bound to *RET* is newline. You can enable automatic indentation by
+binding *RET* to =newline-and-indent=.
+
+#+begin_src emacs-lisp
+    (global-set-key (kbd "RET") 'newline-and-indent)  ; automatically indent when press RET
+#+end_src
+
+When working with source code, we must pay attention to trailng
+whitespace. It is always useful to view whitespace in current buffer
+before committing your code.
+
+#+begin_src emacs-lisp
+  ;; activate whitespace-mode to view all whitespace characters
+  (global-set-key (kbd "C-c w") 'whitespace-mode)
+
+  ;; show unncessary whitespace that can mess up your diff
+  (add-hook 'prog-mode-hook (lambda () (interactive) (setq show-trailing-whitespace 1)))
+
+  ;; use space to indent by default
+  (setq-default indent-tabs-mode nil)
+
+  ;; set appearance of a tab that is represented by 4 spaces
+  (setq-default tab-width 4)
+#+end_src
+
+To clean up trailing whitespace, you can also run =whitespace-cleanup=
+command.
+
+To convert between *TAB* and *space*, you also have two commands:
+=tabify= to turn an active region to use *TAB* for indentation, and
+=untabify= to turn an active region to use *space* for indentation.
+
+*** Package: =clean-aindent-mode=
+:PROPERTIES:
+:ID: clean-aindent-mode
+:END:
+When you press *RET* to create a newline and got indented by
+=eletric-indent-mode=, you have appropriate whitespace for
+indenting. But, if you leave the line blank and move to the next line,
+the whitespace becomes useless. This package helps clean up unused
+whitespace.
+
+View this [[http://www.emacswiki.org/emacs/CleanAutoIndent][Emacswiki page]] for more details.
+
+#+begin_src emacs-lisp
+  ;; Package: clean-aindent-mode
+  (require 'clean-aindent-mode)
+  (add-hook 'prog-mode-hook 'clean-aindent-mode)
+#+end_src
+
+*** Package: =dtrt-indent=
+:PROPERTIES:
+:ID: dtrt-indent
+:END:
+A minor mode that guesses the indentation offset originally used for
+creating source code files and transparently adjusts the corresponding
+settings in Emacs, making it more convenient to edit foreign files.
+
+This package is really useful when you have to work on many different
+projects (for example, your project consists of many git submodules)
+that use different indentation format. One project might use *TAB*
+for indentation; another project might use *space* for
+indentation. Having to manually switch between *TAB* and *space* is
+tiresome. We should let Emacs take care of it automatically. This
+package does exactly that. However, if a project mixes *TAB* and
+*space*, then the package will have a hard time to detect. But then
+again, if you work on such project, it doesn't matter anyway.
+
+Setup:
+
+#+begin_src emacs-lisp
+  ;; Package: dtrt-indent
+  (require 'dtrt-indent)
+  (dtrt-indent-mode 1)
+#+end_src
+
+If you use Semantic for code completion, you may one to turn off
+=dtrt-indent= messages since Semantic may visit many files for
+parsing, and each file entered a message from =dtrt-indent= is printed
+in echo area and might become a constant annoyance.
+
+#+begin_src emacs-lisp
+  (setq dtrt-indent-verbosity 0)
+#+end_src
+
+*** Package: =ws-butler=
+:PROPERTIES:
+:ID: ws-butler
+:END:
+=ws-butler= helps managing whitespace on every line of code written or
+edited, in an unobtrusive, help you write clean code without noisy
+whitespace effortlessly. That is:
+
+- Only lines touched get trimmed. If the white space at end of buffer
+  is changed, then blank lines at the end of buffer are truncated
+  respecting require-final-newline.
+
+- Trimming only happens when saving.
+
+With =clean-aindent-mode= and =dtrt-indent= and =ws-butler=, you
+could totally forget about whitespace. If you are careful, turn on
+=whitespace-mode= (bound to =C-c w= above) and check for whitespace
+before committing.
+
+Setup:
+
+#+begin_src emacs-lisp
+    ;; Package: ws-butler
+  (require 'ws-butler)
+  (add-hook 'c-mode-common-hook 'ws-butler-mode)
+#+end_src
+
+** Code template using =yasnippet=
+:PROPERTIES:
+:ID:  yasnippet
+:END:
+YASnippet is a template system for Emacs. It allows you to type an
+abbreviation and automatically expand it into function
+templates. Bundled language templates include: C, C++, C#, Perl,
+Python, Ruby, SQL, LaTeX, HTML, CSS and more. The snippet syntax is
+inspired from TextMate's syntax, you can even import most TextMate
+templates to YASnippet.
+
+Setup:
+
+#+begin_src emacs-lisp
+  ;; Package: yasnippet
+  (require 'yasnippet)
+  (yas-global-mode 1)
+#+end_src
+
+_Usage_:
+
+In major modes where *yasnippet* has snippets available,
+typing a certain keyword and *TAB* insert a predefined snippet. For
+example, in a C buffer, if you type =for= and *TAB*, it expands to:
+
+#+begin_src c
+  for (i = 0; i < N; i++) {
+      ...point will be here....
+  }
+#+end_src
+
+You can view supported snippets [[https://github.com/AndreaCrotti/yasnippet-snippets/tree/master][here]].
+
+** Package: =smartparens=
+:PROPERTIES:
+:ID: smartparens
+:END:
+=smartparens= is a minor mode that provides many features for
+manipulating pairs. Pair can be simple as parentheses or brackets, or
+can be programming tokens such as =if= ... =fi= or =if= ... =end= in
+many languages. The most basic and essential feature is automatic
+closing of a pair when user inserts an opening one.
+
+#+begin_src emacs-lisp
+    ;; Package: smartparens
+  (require 'smartparens-config)
+  (show-smartparens-global-mode +1)
+  (smartparens-global-mode 1)
+
+  ;; when you press RET, the curly braces automatically
+  ;; add another newline
+  (sp-with-modes '(c-mode c++-mode)
+    (sp-local-pair "{" nil :post-handlers '(("||\n[i]" "RET")))
+    (sp-local-pair "/*" "*/" :post-handlers '((" | " "SPC")
+                                              ("* ||\n[i]" "RET"))))
+#+end_src
+
+For complete documentation, please refer to [[https://github.com/Fuco1/smartparens/wiki#information-for-new-users][Smartparens manual]].
+
+* Compilation Support
+:PROPERTIES:
+:ID: compilation-support
+:END:
+ Compilation mode turns each error message in the buffer into a
+ hyperlink. You can click on each error, or execute a key binding like
+ *RET* to jump to the location of that error.
+
+ The following key bindings are available:
+
+| Key     | Description                                                                     |
+|---------+---------------------------------------------------------------------------------|
+| *C-o*   | Display matched location, but *do not* switch point to matched buffer           |
+|---------+---------------------------------------------------------------------------------|
+| *M-n*   | Move to next error message, but *do not* visit error location                   |
+|---------+---------------------------------------------------------------------------------|
+| *M-p*   | Move to next previous message, but *do not* visit error location                |
+|---------+---------------------------------------------------------------------------------|
+| *M-g n* | Move to next error message, visit error location                                |
+|---------+---------------------------------------------------------------------------------|
+| *M-g p* | Move to previous error message, visit error location                            |
+|---------+---------------------------------------------------------------------------------|
+| *RET*   | Visit location of error at poiint                                               |
+|---------+---------------------------------------------------------------------------------|
+| *M-{*   | Move point to the next error message or match occurring in a different file     |
+|---------+---------------------------------------------------------------------------------|
+| *M-}*   | Move point to the previous error message or match occurring in a different file |
+|---------+---------------------------------------------------------------------------------|
+| *q*     | Quit =*compilation*= buffer                                                     |
+|---------+---------------------------------------------------------------------------------|
+
+I usually execute the same compilation command many times. It's more
+convenient if Emacs doesn't ask us to confirm every time we re-execute
+a command:
+
+#+begin_src emacs-lisp
+  (global-set-key (kbd "<f5>") (lambda ()
+                                 (interactive)
+                                 (setq-local compilation-read-command nil)
+                                 (call-interactively 'compile)))
+#+end_src
+
+If you want to enter a new command, add prefix argument before
+pressing =<f5>=.
+
+Demo:
+
+[[file:static/c-ide/compilation-mode.gif][file:static/c-ide/compilation-mode.gif]]
+
+As you can see, output in =*compilation*= buffer looks much better
+than in plain terminal with colors and you can also interact with it.
+
+You can also run other shell commands in here, not just compilation
+commands. A really cool thing with =compilation-mode= is that it is
+asynchronous. That is, if your source files contain errors, you don't
+have to wait for the whole compilation process to finish. You can
+examine the errors right away in the =*compilation*= buffer, while the
+compilation process keeps going.
+
+When you compile with =compilation-mode=, your shell output is
+processed and highlighted with beautiful colors to easy your reading:
+
+[[file:static/c-ide/compilation-compile.gif][file:static/c-ide/compilation-compile.gif]]
+
+*TIP*: It is useful to open a Dired buffer of the project root and
+store a window configuration that contains it into a register, so you
+can always jump back to project root any where, any time and run
+compilation command. If you do not use know how to use registers to
+store window configurations, read it [[file:emacs-tutor.org::*Registers][here]].
+
+* Debugging
+:PROPERTIES:
+:ID: debugging 
+:END:
+** With GDB Many Windows
+:PROPERTIES:
+:ID: gdb-many-windows
+:END:
+
+Emacs has built-in frontend support for GDB that provides IDE-like
+interface. It has a layout like this:
+
+[[file:static/c-ide/gdb-many-windows.gif][file:static/c-ide/gdb-many-windows.gif]]
+
+Stock Emacs doesn't enable this layout by default. You have to
+tell Emacs to always use =gdb-many-windows=:
+
+#+begin_src emacs-lisp
+  (setq
+   ;; use gdb-many-windows by default
+   gdb-many-windows t
+
+   ;; Non-nil means display source file containing the main routine at startup
+   gdb-show-main t
+   )
+#+end_src
+
+Now, find a binary built for debugging, and start GDB by =M-x
+gdb=. Emacs prompts asking you how to run =gdb=. By default, the
+prompt looks like this:
+
+[[file:static/c-ide/gdb-prompt.gif][file:static/c-ide/gdb-prompt.gif]]
+
+To use =gdb-many-windows=, you must always supply the *-i=mi* argument
+to gdb, otherwise =gdb-many-windows= won't work. By default, as you've
+seen the layout of =gdb-many-windows= above, you have the following
+buffers visible on your screen (ignore the first row):
+
+|                           |                                     |
+|---------------------------+-------------------------------------|
+| 1. GUD interaction buffer | 2. Locals/Registers buffer          |
+|---------------------------+-------------------------------------|
+| 3. Primary Source buffer  | 4. I/O buffer for debugging program |
+|---------------------------+-------------------------------------|
+| 5. Stack buffer           | 6. Breakpoints/Threads buffer       |
+|---------------------------+-------------------------------------|
+
+Each cell coressponds to the following commands:
+
+- =gdb-display-gdb-buffer= *(Cell 1)*: This is where you enter =gdb=
+  commands, the same as in terminal. When you kill this buffer, other
+  GDb buffers are also killed and debugging session is terminated.
+
+- =gdb-display-locals-buffer= *(Cell 2)*: display local variables and
+  its values in current stack frame. Please refer to [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Source-Buffers.html#Source-Buffers][GNU Manual -
+  Other GDB Buffers]] for usage of the buffer.
+
+- =gdb-display-registers-buffer= *(Cell 2)*: registers values are
+  displayed here. Please refer to [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Source-Buffers.html#Source-Buffers][GNU Manual - Other GDB Buffers]] for
+  usage of the buffer.
+
+- Your source buffer *(Cell 3)*: Your source code for stepping through
+  out the debugging session. Please refer to [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Source-Buffers.html#Source-Buffers][GNU Manual - Source
+  Buffers]] for usage of the buffer.
+
+- =gdb-display-io-buffer= *(Cell 4)*: This is where your program
+  displays output and accepts input. In stock GDB (Command Line
+  Interface), you enter input whenever a program asks for one under
+  GDB prompt. Using =gdb-many-windows=, *you must enter program input
+  here*.
+
+- =gdb-display-stack-buffer= *(Cell 5)*: Display function call
+  stack. Please refer to [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Stack-Buffer.html#Stack-Buffer][GNU Manual - Stack buffer]] for usage.
+
+- =gdb-display-breakpoints-buffer= *(Cell 6)*: Display a list of
+  breakpoints. Please refere to [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Breakpoints-Buffer.html#Breakpoints-Buffer][GNU Manual - Breakpoints Buffer]] for
+  usage of the buffer.
+
+- =gdb-display-threads-buffer= (Cell 6): Display running threads in
+  your programs. Please refer to [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Threads-Buffer.html#Threads-Buffer][GNU Manual - Threads Buffer]] and
+  [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Multithreaded-Debugging.html#Multithreaded-Debugging][Multithreaded Debugging]] for usage of the buffer. 
+
+There are two useful commands that are not visible in
+=gdb-many-windows=:
+
+- =gdb-display-disassembly-buffer=: displays the current frame as
+  assembly code.
+- =gdb-display-memory-buffer=: displays a portion of program memory.
+
+There are another variants of the above buffers, with =gdb-frame=
+prefix instead of =gdb-display=. When you run commands with
+=gdb-frame= prefix, the buffers are opened in a new frame instead of
+occupying an existing window. This is useful when you have 2 monitors,
+one is for the standard =gdb-many-windows= layout and another one is
+for displaying disassembly buffer and memory buffer in a separate
+frame.
+
+** With Grand Unified Debugger - GUD
+:PROPERTIES:
+:ID: gud-gdb
+:END:
+The *Grand Unified Debugger*, or GUD for short, is an Emacs major mode
+for debugging. It works on top of command line debuggers. GUD handles
+interaction with gdb, dbx, xdb, sdb, perldb, jdb, and pdb, by
+default. Emacs provides unified key bindings for those debuggers. We
+only concern about GDB in this guide.
+
+GUD works by sending text commands to a debugger subprocess, and
+record its output. As you debug the program, Emacs displays relevant
+source files with an arrow in the left fringe indicating the current
+execution line. GUD is simple and stable. When starting GUD, you only
+have a GDB command buffer and your source file. If you like
+simplicity, you can use GUD. However, you can still use other
+=gdb-display-= or =gdb-frame-= variants listed in previous section
+when needed.
+
+[[file:static/c-ide/gud.gif][file:static/c-ide/gud.gif]]
+
+As you can see, the default Emacs interface also includes a menu for
+regular debugging operations, such as Stop, Run, Continue, Next Line,
+Up/Down Stack...
+
+Refer to a list of commands supported by GUD at [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Commands-of-GUD.html#Commands-of-GUD][GNU Emacs Manual -
+Commands of GUD]]. Note that these key bindings not only work with GDB,
+but any debuggers supported by GUD, since it's a *Grand Unified
+Debugger*.
+
+There's an Emacs packages that offers support for more debuggers:
+[[https://github.com/rocky/emacs-dbgr][emacs-dbgr]]. Here is [[https://github.com/rocky/emacs-dbgr/wiki/Debuggers-Supported][the list of supported debuggers]]. If you have to
+work with many languages, use *GUD*.
