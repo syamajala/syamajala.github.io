@@ -344,7 +344,7 @@ To have cmake-ide automatically create a compilation commands file in
 your project root create a .dir-locals.el containing the following:
 
 #+begin_src emacs-lisp
-((nil . ((cmake-ide-build-dir "<PATH_TO_PROJECT_BUILD_DIRECTORY>"))))
+((nil . ((cmake-ide-build-dir . "<PATH_TO_PROJECT_BUILD_DIRECTORY>"))))
 #+end_src
 
 You can now build your project using =M-x
