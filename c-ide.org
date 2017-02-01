@@ -38,6 +38,7 @@ Enivornment for Emacs Guide]]. It assumes you:
 
 To enable Helm integration add:
 #+begin_src emacs-lisp
+(require 'rtags-helm)
 (setq rtags-use-helm t)
 #+end_src
 
