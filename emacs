@@ -20,6 +20,7 @@
 (require 'rtags)
 (require 'company-rtags)
 (require 'flycheck-rtags)
+(require 'rtags-helm)
 
 (setq rtags-completions-enabled t)
 (setq rtags-use-helm t)

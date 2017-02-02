@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>Emacs as C++ IDE</title>
-<!-- 2016-06-02 Thu 07:26 -->
+<!-- 2017-02-01 Wed 21:39 -->
 <meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta  name="generator" content="Org-mode" />
 <style type="text/css">
@@ -213,11 +213,11 @@ manager.
 <pre class="src src-emacs-lisp"><span class="org-rainbow-delimiters-depth-1">(</span><span class="org-keyword">require</span> '<span class="org-constant">rtags</span><span class="org-rainbow-delimiters-depth-1">)</span>
 <span class="org-rainbow-delimiters-depth-1">(</span><span class="org-keyword">require</span> '<span class="org-constant">company-rtags</span><span class="org-rainbow-delimiters-depth-1">)</span>
 
-<span class="org-rainbow-delimiters-depth-1">(</span>setq rtags-completions-enabled t<span class="org-rainbow-delimiters-depth-1">)</span>
+<span class="org-rainbow-delimiters-depth-1">(</span><span class="org-keyword">setq</span> rtags-completions-enabled t<span class="org-rainbow-delimiters-depth-1">)</span>
 <span class="org-rainbow-delimiters-depth-1">(</span>eval-after-load 'company
   '<span class="org-rainbow-delimiters-depth-2">(</span>add-to-list
     'company-backends 'company-rtags<span class="org-rainbow-delimiters-depth-2">)</span><span class="org-rainbow-delimiters-depth-1">)</span>
-<span class="org-rainbow-delimiters-depth-1">(</span>setq rtags-autostart-diagnostics t<span class="org-rainbow-delimiters-depth-1">)</span>
+<span class="org-rainbow-delimiters-depth-1">(</span><span class="org-keyword">setq</span> rtags-autostart-diagnostics t<span class="org-rainbow-delimiters-depth-1">)</span>
 <span class="org-rainbow-delimiters-depth-1">(</span>rtags-enable-standard-keybindings<span class="org-rainbow-delimiters-depth-1">)</span>
 </pre>
 </div>
@@ -227,7 +227,8 @@ To enable Helm integration add:
 </p>
 <div class="org-src-container">
 
-<pre class="src src-emacs-lisp"><span class="org-rainbow-delimiters-depth-1">(</span>setq rtags-use-helm t<span class="org-rainbow-delimiters-depth-1">)</span>
+<pre class="src src-emacs-lisp"><span class="org-rainbow-delimiters-depth-1">(</span><span class="org-keyword">require</span> '<span class="org-constant">rtags-helm</span><span class="org-rainbow-delimiters-depth-1">)</span>
+<span class="org-rainbow-delimiters-depth-1">(</span><span class="org-keyword">setq</span> rtags-use-helm t<span class="org-rainbow-delimiters-depth-1">)</span>
 </pre>
 </div>
 
@@ -410,7 +411,7 @@ emacs init file:
 <div class="org-src-container">
 
 <pre class="src src-emacs-lisp"><span class="org-rainbow-delimiters-depth-1">(</span>add-hook 'irony-mode-hook 'company-irony-setup-begin-commands<span class="org-rainbow-delimiters-depth-1">)</span>
-<span class="org-rainbow-delimiters-depth-1">(</span>setq company-backends <span class="org-rainbow-delimiters-depth-2">(</span>delete 'company-semantic company-backends<span class="org-rainbow-delimiters-depth-2">)</span><span class="org-rainbow-delimiters-depth-1">)</span>
+<span class="org-rainbow-delimiters-depth-1">(</span><span class="org-keyword">setq</span> company-backends <span class="org-rainbow-delimiters-depth-2">(</span>delete 'company-semantic company-backends<span class="org-rainbow-delimiters-depth-2">)</span><span class="org-rainbow-delimiters-depth-1">)</span>
 <span class="org-rainbow-delimiters-depth-1">(</span>eval-after-load 'company
   '<span class="org-rainbow-delimiters-depth-2">(</span>add-to-list
     'company-backends 'company-irony<span class="org-rainbow-delimiters-depth-2">)</span><span class="org-rainbow-delimiters-depth-1">)</span>
@@ -423,7 +424,7 @@ If you want to enable tab-completion with no delay use the following:
 
 <div class="org-src-container">
 
-<pre class="src src-emacs-lisp"><span class="org-rainbow-delimiters-depth-1">(</span>setq company-idle-delay 0<span class="org-rainbow-delimiters-depth-1">)</span>
+<pre class="src src-emacs-lisp"><span class="org-rainbow-delimiters-depth-1">(</span><span class="org-keyword">setq</span> company-idle-delay 0<span class="org-rainbow-delimiters-depth-1">)</span>
 <span class="org-rainbow-delimiters-depth-1">(</span>define-key c-mode-map <span class="org-rainbow-delimiters-depth-2">[</span><span class="org-rainbow-delimiters-depth-3">(</span>tab<span class="org-rainbow-delimiters-depth-3">)</span><span class="org-rainbow-delimiters-depth-2">]</span> 'company-complete<span class="org-rainbow-delimiters-depth-1">)</span>
 <span class="org-rainbow-delimiters-depth-1">(</span>define-key c++-mode-map <span class="org-rainbow-delimiters-depth-2">[</span><span class="org-rainbow-delimiters-depth-3">(</span>tab<span class="org-rainbow-delimiters-depth-3">)</span><span class="org-rainbow-delimiters-depth-2">]</span> 'company-complete<span class="org-rainbow-delimiters-depth-1">)</span>
 </pre>
@@ -504,10 +505,10 @@ emacs init file:
 
 <span class="org-rainbow-delimiters-depth-1">(</span><span class="org-keyword">defun</span> <span class="org-function-name">my-flycheck-rtags-setup</span> <span class="org-rainbow-delimiters-depth-2">()</span>
   <span class="org-rainbow-delimiters-depth-2">(</span>flycheck-select-checker 'rtags<span class="org-rainbow-delimiters-depth-2">)</span>
-  <span class="org-rainbow-delimiters-depth-2">(</span>setq-local flycheck-highlighting-mode nil<span class="org-rainbow-delimiters-depth-2">)</span> <span class="org-comment-delimiter">;; </span><span class="org-comment">RTags creates more accurate overlays.</span>
-  <span class="org-rainbow-delimiters-depth-2">(</span>setq-local flycheck-check-syntax-automatically nil<span class="org-rainbow-delimiters-depth-2">)</span><span class="org-rainbow-delimiters-depth-1">)</span>
+  <span class="org-rainbow-delimiters-depth-2">(</span><span class="org-keyword">setq-local</span> flycheck-highlighting-mode nil<span class="org-rainbow-delimiters-depth-2">)</span> <span class="org-comment-delimiter">;; </span><span class="org-comment">RTags creates more accurate overlays.</span>
+  <span class="org-rainbow-delimiters-depth-2">(</span><span class="org-keyword">setq-local</span> flycheck-check-syntax-automatically nil<span class="org-rainbow-delimiters-depth-2">)</span><span class="org-rainbow-delimiters-depth-1">)</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">c-mode-common-hook is also called by c++-mode</span>
-<span class="org-rainbow-delimiters-depth-1">(</span>add-hook 'c-mode-common-hook #'my-flycheck-rtags-setup<span class="org-rainbow-delimiters-depth-1">)</span>'<span class="org-rainbow-delimiters-unmatched">))</span>
+<span class="org-rainbow-delimiters-depth-1">(</span>add-hook 'c-mode-common-hook #'my-flycheck-rtags-setup<span class="org-rainbow-delimiters-depth-1">)</span>
 </pre>
 </div>
 </div>
@@ -575,8 +576,8 @@ your RTags index as well.
 </div>
 </div>
 <div id="postamble" class="status">
-<p class="date">Created: 2016-06-02 Thu 07:26</p>
-<p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.5.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
+<p class="date">Created: 2017-02-01 Wed 21:39</p>
+<p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 25.1.1 (<a href="http://orgmode.org">Org</a> mode 8.2.10)</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
